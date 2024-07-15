@@ -2,9 +2,9 @@ namespace BVS;
 
 internal static class Logging
 {
-    internal static void WriteLog(string code, string description)
+    internal static void WriteLog(string code, string description, int id)
     {
-        DBFunctions.WriteLog(new Log(){Time = DateTime.Now.ToString(), Code = code, Description = description});
+        DBFunctions.WriteLog(new Log(){Time = DateTime.Now.ToString(), Code = code, Description = description, DBObjectID = id.ToString()});
     }
 
     internal static void WriteLogDirectlyToFile(string code, string description)
@@ -23,7 +23,7 @@ internal static class Logging
         {
             foreach (var log in logs)
             {
-                sw.WriteLine($"{log.Time}\n{log.Code}\n{log.Description}");
+                sw.WriteLine($"{log.Time}\n{log.Code}\n{log.Description}\n{log.DBObjectID}");
                 sw.WriteLine("----------");
             }
         }
