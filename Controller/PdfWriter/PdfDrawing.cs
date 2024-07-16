@@ -1,3 +1,4 @@
+using System.Reflection.Metadata.Ecma335;
 using Microsoft.VisualBasic;
 using PdfSharp;
 using PdfSharp.Drawing;
@@ -41,8 +42,16 @@ internal class PdfDrawInformation
 internal class PdfTemplateObject
 {
     internal required PdfTemplate Template { get; set; }
-    internal required List<PdfTemplateItemCollection> ItemCollections { get; set; }
-    internal PdfDocument? Draw(PdfFileType type, List<PdfData> data)
+    internal required List<PdfTemplateDynamicItemCollection> DynamicItemCollections { get; set; }
+    internal string? GetKeyValueFromTemplate(string key)
+    {
+        switch(key)
+        {
+            case "TemplateName": return Template.Name;
+            default: return null;
+        }
+    }
+    internal PdfDocument? Draw(PdfFileType type, PdfData data)
     {
         if(Template.Name is null) {Logging.WriteLog("nv.template.name", "Value of DBObject is null.", Template.PdfTemplateID); return null;}
         if(Template.VerticalStart is null) {Logging.WriteLog("nv.template.verticalstart", "Value of DBObject is null.", Template.PdfTemplateID); return null;}
@@ -73,7 +82,7 @@ internal class PdfTemplateObject
             HorizontalEnd = (double)Template.HorizontalEnd,
         };
 
-        foreach(var ic in ItemCollections)
+        foreach(var ic in DynamicItemCollections)
         {
             if(pdi.PreviousSuccess) ic.Draw(pdo, type, data, pdi);
         }
@@ -82,16 +91,16 @@ internal class PdfTemplateObject
     }
 }
 
-internal class PdfTemplateItemCollection
+internal class PdfTemplateDynamicItemCollection
 {
-    internal required PdfTemplateItem Item { get; set; }
+    internal required PdfTemplateDynamicItem Item { get; set; }
     internal required List<ITemplateItem> Items { get; set; }
 
-    internal void Draw(PdfDocumentObject pdo, PdfFileType type, List<PdfData> data, PdfDrawInformation pdi)
+    internal void Draw(PdfDocumentObject pdo, PdfFileType type, PdfData data, PdfDrawInformation pdi)
     {
-        if(Item.VerticalOffsetToPreviousItem is null) {Logging.WriteLog("nv.templateitem.offset", "Value of DBObject is null.", Item.PdfTemplateItemID); pdi.PreviousSuccess = false; return;}
-        if(Item.AlwaysStartNewPage is null) {Logging.WriteLog("nv.templateitem.newpage", "Value of DBObject is null.", Item.PdfTemplateItemID); pdi.PreviousSuccess = false; return;}
-        if(Item.RepeatForEachDataObject is null) {Logging.WriteLog("nv.templateitem.repeat", "Value of DBObject is null.", Item.PdfTemplateItemID); pdi.PreviousSuccess = false; return;}
+        if(Item.VerticalOffsetToPreviousItem is null) {Logging.WriteLog("nv.templateitem.offset", "Value of DBObject is null.", Item.PdfTemplateDynamicItemID); pdi.PreviousSuccess = false; return;}
+        if(Item.AlwaysStartNewPage is null) {Logging.WriteLog("nv.templateitem.newpage", "Value of DBObject is null.", Item.PdfTemplateDynamicItemID); pdi.PreviousSuccess = false; return;}
+        if(Item.RepeatForEachDataObject is null) {Logging.WriteLog("nv.templateitem.repeat", "Value of DBObject is null.", Item.PdfTemplateDynamicItemID); pdi.PreviousSuccess = false; return;}
         
         double newpos;
         if((bool)Item.AlwaysStartNewPage) 
@@ -106,12 +115,12 @@ internal class PdfTemplateItemCollection
 
         if((bool)Item.RepeatForEachDataObject)
         {
-            foreach(var d in data)
+            foreach(var d in data.PdfCustomerDatas)
             {
                 double need = 0;
                 foreach(var item in Items)
                 {
-                    var mnh = item.PrepareDraw(pdo, type, d, pdi, newpos);
+                    var mnh = item.PrepareDraw(pdo, type, d, pdi, newpos, pdi.HorizontalStart);
                     if(!mnh.success) {pdi.PreviousSuccess = false; return;}
                     if(mnh.height > need) need = mnh.height;
                 }
@@ -131,11 +140,11 @@ internal class PdfTemplateItemCollection
         }
         else
         {
-            var d = data[0];
+            var d = data.PdfCustomerDatas[0];
             double need = 0;
             foreach(var item in Items)
             {
-                var mnh = item.PrepareDraw(pdo, type, d, pdi, newpos);
+                var mnh = item.PrepareDraw(pdo, type, d, pdi, newpos, pdi.HorizontalStart);
                 if(!mnh.success) {pdi.PreviousSuccess = false; return;}
                 if(mnh.height > need) need = mnh.height;
             }
@@ -157,8 +166,132 @@ internal class PdfTemplateItemCollection
 
 internal interface ITemplateItem
 {
-    (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfData data, PdfDrawInformation pdi, double top);
+    (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfCustomerData data, PdfDrawInformation pdi, double top, double left);
     void DrawItem(PdfDocumentObject pdo, bool newpage, double heightoffset);
+}
+
+internal class PdfStringItem : ITemplateItem
+{
+    internal class PdfKeyItem
+    {
+        internal required PdfKey Key { get; set; }
+        internal required PdfTemplateKeyValue TemplateKeyValue { get; set; }
+    }
+    internal required PdfTemplateString FormatString { get; set; }
+    internal required List<PdfKeyItem> Keys { get; set; }
+
+    private bool prepared { get; set; } = false;
+    private StringInformation? Info { get; set; }
+    private class StringInformation
+    {
+        internal required string FullString { get; set; }
+        internal required double Top { get; set; }
+        internal required double Left { get; set; }
+        internal required double Right { get; set; }
+        internal required double Bottom { get; set; }
+        internal required XBrush Brush { get; set; }
+        internal required XFont Font { get; set; } 
+    }
+
+    public (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfCustomerData data, PdfDrawInformation pdi, double top, double left)
+    {
+        if(FormatString.FormatString is null) {Logging.WriteLog("nv.formatstring.formatstring", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.VerticalStart is null) {Logging.WriteLog("nv.formatstring.verticalstart", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.HorizontalStart is null) {Logging.WriteLog("nv.formatstring.horizontalstart", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.HorizontalEnd is null) {Logging.WriteLog("nv.formatstring.horizontalend", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.Brush is null) {Logging.WriteLog("nv.formatstring.brush", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.FontFamily is null) {Logging.WriteLog("nv.formatstring.fontfamily", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+        if(FormatString.FontSize is null) {Logging.WriteLog("nv.formatstring.fontsize", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return (0, false);} 
+
+        var full = (type == PdfFileType.Document) ? GetFullString(data.Data) : GetTemplateString();
+        if(full is null) {Logging.WriteLog("nv.fullstring", "Error writing string from keys.", FormatString.PdfTemplateStringID); return (0, false);}
+        var font = new XFont(FormatString.FontFamily, (double)FormatString.FontSize);
+        var brush = new XSolidBrush(XColor.FromKnownColor((XKnownColor)FormatString.Brush));
+        if(font is null) {Logging.WriteLog("nv.font", "Error reading font", FormatString.PdfTemplateStringID); return (0, false);}
+        if(brush is null) {Logging.WriteLog("nv.brush", "Error reading brush", FormatString.PdfTemplateStringID); return (0, false);}
+
+        XRect rect = new(new XPoint((double)FormatString.HorizontalStart, 0), new XPoint((double)FormatString.HorizontalEnd, 800));
+        PdfTextMeasurements ptm = new(pdo.Gfxs[pdo.CurrentIndex], full, font, rect);
+        int l; double h;
+        ptm.MeasureText(out l, out h);
+
+        Info = new()
+        {
+            FullString = full,
+            Top = (double)FormatString.VerticalStart + top,
+            Bottom = (double)FormatString.VerticalStart + top + h,
+            Left = (double)FormatString.HorizontalStart + left,
+            Right = (double)FormatString.HorizontalEnd + left,
+            Brush = brush,
+            Font = font
+        };
+
+        prepared = true;
+
+        return (h, true);
+    }
+    public void DrawItem(PdfDocumentObject pdo, bool newpage, double heightoffset)
+    {
+        if(Info is null || !prepared) return;
+        try
+        {
+            if(newpage)
+            {
+                Info.Top -= heightoffset;
+                Info.Bottom -= heightoffset;
+            }
+            XRect strrect = new(new XPoint(Info.Left, Info.Top), new XPoint(Info.Right, Info.Bottom));
+            var tf = new XTextFormatter(pdo.Gfxs[pdo.CurrentIndex]);
+            var format = new XStringFormat
+            {
+                LineAlignment = XLineAlignment.Near,
+                Alignment = XStringAlignment.Near
+            };
+            tf.DrawString(Info.FullString, Info.Font, Info.Brush, strrect, format);
+        }
+        catch(Exception ex) {Logging.WriteLog("err.stringitem.draw", ex.ToString(), FormatString.PdfTemplateStringID);}
+    }
+
+    private string? GetFullString(List<PdfKeyValuePair> pairs)
+    {
+        if(FormatString.FormatString is null) {Logging.WriteLog("nv.formatstring.formatstring", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return null;} 
+        try
+        {
+            var sort = Keys.OrderBy(k => k.TemplateKeyValue.IndexInFormatString).ToList();
+            var strings = new string[sort.Count];
+            for(int i = 0; i < sort.Count; i++)
+            {
+                var value = FindKeyValue(pairs, sort[i].TemplateKeyValue.PdfTemplateKeyValueID);
+                if(value is not null) strings[i] = value.ToString();
+                else
+                {
+                    strings[i] = string.Empty;
+                    Logging.WriteLog("mk", string.Format("Fehlender Key '{1}' in PdfFileKeyValuePairListe. PdfTemplateKeyID={0}", sort[i].TemplateKeyValue.PdfKeyID, sort[i].Key.Key), FormatString.PdfTemplateStringID);
+                }
+            }
+            return (strings.Length > 0) ? string.Format(FormatString.FormatString, strings) : FormatString.FormatString;
+        }
+        catch(Exception ex){Logging.WriteLog("err.getfullstring", ex.ToString(), FormatString.PdfTemplateStringID); return null;}
+    }
+
+    private string? GetTemplateString()
+    {
+        if(FormatString.FormatString is null) {Logging.WriteLog("nv.formatstring.formatstring", "Value of DBObject is null.", FormatString.PdfTemplateStringID); return null;} 
+        try
+        {
+            var sort = Keys.OrderBy(k => k.TemplateKeyValue.IndexInFormatString).ToList();
+            string[] strings = new string[sort.Count];
+            for(int i = 0; i < sort.Count; i++) strings[i] = string.Format("${0}$", sort[i].Key.Key);
+            return (strings.Length > 0) ? string.Format(FormatString.FormatString, strings) : FormatString.FormatString;
+        }
+        catch(Exception ex){Logging.WriteLog("err.gettemplatestring", ex.ToString(), FormatString.PdfTemplateStringID); return null;}
+    }
+
+    private string? FindKeyValue(List<PdfKeyValuePair> pairs, int PdfTemplateKeyValueID)
+    {
+        foreach(var pair in pairs) if(pair.PdfTemplateKeyValueID == PdfTemplateKeyValueID) return pair.Value;
+        return null;
+    }
 }
 
 internal class PdfGeometryItem : ITemplateItem
@@ -191,7 +324,7 @@ internal class PdfGeometryItem : ITemplateItem
         internal required double Y { get; set; }
     }
 
-    public (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfData data, PdfDrawInformation pdi, double top)
+    public (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfCustomerData data, PdfDrawInformation pdi, double top, double left)
     {
         if(Geometry.Pen is null) {Logging.WriteLog("nv.templategeometry.pen", "Value of DBObject is null.", Geometry.PdfTemplateGeometryID); return (0, false);} 
         if(Geometry.Type is null) {Logging.WriteLog("nv.templategeometry.type", "Value of DBObject is null.", Geometry.PdfTemplateGeometryID); return (0, false);} 
@@ -222,8 +355,8 @@ internal class PdfGeometryItem : ITemplateItem
             FillMode = (XFillMode)(int)Geometry.FillMode,
             Top = (double)Geometry.VerticalStart + top,
             Bottom = (double)Geometry.VerticalEnd + top,
-            Left = (double)Geometry.HorizontalStart,
-            Right = (double)Geometry.HorizontalEnd,
+            Left = (double)Geometry.HorizontalStart + left,
+            Right = (double)Geometry.HorizontalEnd + left,
             StartAngle = (double)Geometry.StartAngle,
             SweepAngle = (double)Geometry.SweepAngle,
             Tension = (double)Geometry.Tension,
@@ -249,7 +382,7 @@ internal class PdfGeometryItem : ITemplateItem
             if(newpage)
             {
                 Info.Top -= heightoffset;
-                Info.Left -= heightoffset;
+                Info.Bottom -= heightoffset;
                 foreach(var p in Info.Points) p.Y -= heightoffset;
             }
             DrawGeometry(pdo.Gfxs[pdo.CurrentIndex]);
@@ -384,7 +517,7 @@ internal class PdfImageItem : ITemplateItem
         public required byte[] Bytes { get; set; }
     }
     
-    public (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfData data, PdfDrawInformation pdi, double top)
+    public (double height, bool success) PrepareDraw(PdfDocumentObject pdo, PdfFileType type, PdfCustomerData data, PdfDrawInformation pdi, double top, double left)
     {
         if(Image.VerticalStart is null) {Logging.WriteLog("nv.templateimage.verticalstart", "Value of DBObject is null.", Image.PdfTemplateImageID); return (0, false);} 
         if(Image.VerticalEnd is null) {Logging.WriteLog("nv.templateimage.verticalend", "Value of DBObject is null.", Image.PdfTemplateImageID); return (0, false);} 
@@ -396,8 +529,8 @@ internal class PdfImageItem : ITemplateItem
 
         Info = new()
         {
-            Left = (double)Image.HorizontalStart,
-            Right = (double)Image.HorizontalEnd,
+            Left = (double)Image.HorizontalStart + left,
+            Right = (double)Image.HorizontalEnd + left,
             Top = (double)Image.VerticalStart + top,
             Bottom = (double)Image.VerticalEnd + top,
             Bytes = Data.Bytes

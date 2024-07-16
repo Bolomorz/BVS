@@ -17,7 +17,11 @@ public class PdfTemplateImage
     public int DataID { get; set; }
     public Data? Data { get; set; }
 
-    [ForeignKey("PdfTemplateItem")]
-    public int PdfTemplateItemID { get; set; }
-    public PdfTemplateItem? PdfTemplateItem { get; set; }
+    [ForeignKey("PdfTemplateDynamicItem")]
+    public int PdfTemplateDynamicItemID { get; set; }
+    public PdfTemplateDynamicItem? PdfTemplateDynamicItem { get; set; }
+
+    [ForeignKey("PdfTemplateStaticItem")]
+    public int PdfTemplateStaticItemID { get; set; }
+    public PdfTemplateDynamicItem? PdfTemplateStaticItem { get; set; }
 }

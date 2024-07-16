@@ -7,8 +7,9 @@ public class CustomerPdfFile
 {
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int? CustomerPdfFileID { get; set; }
+    public int CustomerPdfFileID { get; set; }
 
+    public string? FileName { get; set; }
     public byte[]? PdfFile { get; set; }
     public DateTime? Time { get; set; }
 

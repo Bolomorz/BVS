@@ -15,6 +15,7 @@ public class PdfTemplate
     public double? HorizontalEnd { get; set; }
     public string? Orientation { get; set; }
 
-    List<PdfTemplateItem> PdfTemplateItems { get; set; } = new();
+    List<PdfTemplateDynamicItem> PdfTemplateDynamicItems { get; set; } = new();
+    List<PdfTemplateStaticItem> PdfTemplateStaticItems { get; set; } = new();
     List<CustomerPdfFile> CustomerPdfFiles { get; set; } = new();
 }

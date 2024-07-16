@@ -1,10 +1,9 @@
 namespace BVS;
 
-internal class PdfData
+internal class KeyValue
 {
-    public int PdfTemplateID { get; set; } = 0;
-    public int CustomerID { get; set; } = 0;
-    public List<PdfKeyValuePair> Data { get; set; } = new();
+    internal required string Key { get; set; }
+    internal required string Value { get; set; }
 }
 
 internal class PdfKeyValuePair

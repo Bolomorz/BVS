@@ -17,7 +17,7 @@ internal static class Logging
 
     internal static void ProduceLogFile()
     {
-        using StreamWriter sw = new("LogFile.txt");
+        using StreamWriter sw = new("LogFile.txt", append: false);
         var logs = DBFunctions.ReadLogs();
         if(logs is not null)
         {

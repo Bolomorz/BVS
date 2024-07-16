@@ -36,4 +36,38 @@ internal static class DBFunctions
             }
         }
     }
+
+    internal static PdfTemplateObject? GetPdfTemplateObject(int ID)
+    {
+        lock(lo)
+        {
+            try
+            {
+                using DBContext db = new(Settings.year);
+                return db.GetPdfTemplateObject(ID);
+            }
+            catch (Exception ex)
+            {
+                Logging.WriteLogDirectlyToFile("GetPdfTemplateObject", ex.ToString());
+                return null;
+            }
+        }
+    }
+
+    internal static CustomerObject? GetCustomerObject(int ID)
+    {
+        lock(lo)
+        {
+            try
+            {
+                using DBContext db = new(Settings.year);
+                return db.GetCustomerObject(ID);
+            }
+            catch (Exception ex)
+            {
+                Logging.WriteLogDirectlyToFile("GetCustomerObject", ex.ToString());
+                return null;
+            }
+        }
+    }
 }

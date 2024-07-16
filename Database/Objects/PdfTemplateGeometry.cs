@@ -22,9 +22,13 @@ public class PdfTemplateGeometry
     public double? EllipseWidth { get; set; }
     public double? EllipseHeight { get; set;}
 
-    [ForeignKey("PdfTemplateItem")]
-    public int PdfTemplateItemID { get; set; }
-    public PdfTemplateItem? PdfTemplateItem { get; set; }
+    [ForeignKey("PdfTemplateDynamicItem")]
+    public int PdfTemplateDynamicItemID { get; set; }
+    public PdfTemplateDynamicItem? PdfTemplateDynamicItem { get; set; }
+
+    [ForeignKey("PdfTemplateStaticItem")]
+    public int PdfTemplateStaticItemID { get; set; }
+    public PdfTemplateDynamicItem? PdfTemplateStaticItem { get; set; }
 
     List<PdfTemplatePoint> PdfTemplatePoints { get; set; } = new();
 }
