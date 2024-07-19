@@ -29,13 +29,10 @@ internal class CustomerInvoiceItemObject
     internal required InvoiceItem InvoiceItem { get; set; }
     internal string? GetKeyValue(string key)
     {
-        switch(key)
-        {
-            case "InvoiceItemValue": return CustomerInvoiceItem.Value.ToString();
-            case "InvoiceItemActive": return CustomerInvoiceItem.Active.ToString();
-            case "InvoiceItemName": return InvoiceItem.Name;
-            case "InvoiceItemDescription": return InvoiceItem.Description;
-            default: return null;
-        }
+        if(key == InvoiceItem.KeyWord + "Value") return CustomerInvoiceItem.Value.ToString();
+        if(key == InvoiceItem.KeyWord + "Active") return CustomerInvoiceItem.Active.ToString();
+        if(key == InvoiceItem.KeyWord + "Name") return InvoiceItem.Name;
+        if(key == InvoiceItem.KeyWord + "Description") return InvoiceItem.Description;
+        return null;
     }
 }

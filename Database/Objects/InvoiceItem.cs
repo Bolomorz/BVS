@@ -11,6 +11,7 @@ public class InvoiceItem
     public string? Description { get; set; } 
     public decimal? DefaultValue { get; set; } 
     public string? TransformFormula { get; set; } 
+    public string? KeyWord { get; set; }
 
     List<CustomerInvoiceItem> CustomerInvoiceItems { get; set; } = new();
 }
